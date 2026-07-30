@@ -3,52 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>報銷系統 - 登入</title>
+  <title>報銷管理系統</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f9; }
-    .container { max-width: 400px; margin: 50px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-    input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-    button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; font-size: 16px; }
-    button:hover { background: #0056b3; }
-    
-    .register-btn { background: #28a745; }
-    .register-btn:hover { background: #1e7e34; }
-    
-    .google-btn { background: #ffffff; color: #757575; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-    .google-btn:hover { background: #f8f9fa; }
-    .google-icon { width: 20px; height: 20px; margin-right: 10px; }
-    
-    .divider { display: flex; align-items: center; text-align: center; margin: 20px 0; color: #888; }
-    .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #ddd; }
-    .divider:not(:empty)::before { margin-right: .25em; }
-    .divider:not(:empty)::after { margin-left: .25em; }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .form-box { border: 1px solid #ccc; padding: 20px; margin-bottom: 20px; border-radius: 5px; background: #fafafa; }
+    input, select { margin: 5px 0; padding: 8px; width: 100%; max-width: 300px; display: block; }
+    button { padding: 10px 15px; background: #28a745; color: white; border: none; cursor: pointer; margin-top: 10px; border-radius: 4px;}
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+    th { background: #eee; }
+    .admin-badge { color: red; font-weight: bold; }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <h2>系統登入</h2>
-    
-    <!-- Google 登入按鈕 -->
-    <button id="googleLoginBtn" class="google-btn">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google logo" class="google-icon">
-      使用 Google 帳號登入
-    </button>
+  <h1>報銷管理系統 <span id="userDisplay"></span></h1>
+  <button id="logoutBtn" style="background: #dc3545;">登出</button>
 
-    <div class="divider">或使用 Email 登入</div>
-
-    <input type="text" id="email" placeholder="輸入 ID 或 Email">
-    <input type="password" id="password" placeholder="輸入密碼">
-    
-    <button id="loginBtn">登入</button>
-    <button id="registerBtn" class="register-btn">註冊新會員</button>
-    <p id="msg" style="color: red; text-align: center;"></p>
+  <div class="form-box">
+    <h3>新增 Claim 單</h3>
+    <label>分類：</label>
+    <select id="claimCategory">
+      <option value="交通費">交通費</option>
+      <option value="餐飲費">餐飲費</option>
+      <option value="採購費">採購費</option>
+      <option value="其他">其他</option>
+    </select>
+    <label>價錢：</label>
+    <input type="number" id="claimPrice" placeholder="輸入金額">
+    <label>人名：</label>
+    <input type="text" id="claimName" placeholder="輸入申請人姓名">
+    <label>日期：</label>
+    <input type="date" id="claimDate">
+    <label>上傳單據 (相片或 PDF)：</label>
+    <input type="file" id="claimReceipt" accept="image/*,.pdf">
+    <button id="submitBtn">送出表單</button>
+    <p id="statusMsg"></p>
   </div>
+
+  <h3>單據紀錄表</h3>
+  <table>
+    <thead>
+      <tr><th>日期</th><th>人名</th><th>分類</th><th>價錢</th><th>單據檔案</th></tr>
+    </thead>
+    <tbody id="dataTable"></tbody>
+  </table>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    // 這裡新增了 GoogleAuthProvider 和 signInWithPopup
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD8c7DvOJnnRHYnJtcK5ds6-VDGH7vCkEY",
@@ -60,73 +64,67 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const googleProvider = new GoogleAuthProvider(); // 建立 Google 登入提供者
+    const db = getFirestore(app);
+    const storage = getStorage(app);
 
-    const msg = document.getElementById("msg");
+    // 檢查登入狀態
+    const role = localStorage.getItem("userRole");
+    const email = localStorage.getItem("userEmail");
+    if (!role) { window.location.href = "login.html"; }
 
-    // ==========================================
-    // 1. Google 登入邏輯
-    // ==========================================
-    document.getElementById("googleLoginBtn").addEventListener("click", () => {
-      signInWithPopup(auth, googleProvider)
-        .then((result) => {
-          const user = result.user;
-          // 將 Google 登入的使用者設定為一般會員 (member)
-          localStorage.setItem("userRole", "member");
-          localStorage.setItem("userEmail", user.email);
-          window.location.href = "main.html";
-        })
-        .catch((error) => {
-          msg.innerText = "Google 登入失敗：" + error.message;
-        });
+    document.getElementById("userDisplay").innerHTML = role === "admin" 
+      ? `(<span class="admin-badge">Admin</span>)` : `(${email})`;
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      localStorage.clear();
+      window.location.href = "login.html";
     });
 
-    // ==========================================
-    // 2. 一般 Email 登入邏輯 (包含 Admin)
-    // ==========================================
-    document.getElementById("loginBtn").addEventListener("click", () => {
-      const email = document.getElementById("email").value;
-      const pwd = document.getElementById("password").value;
+    // 讀取資料
+    async function loadData() {
+      const dataTable = document.getElementById("dataTable");
+      dataTable.innerHTML = "";
+      const querySnapshot = await getDocs(collection(db, "claims"));
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (role === "admin" || data.uploader === email) {
+          dataTable.innerHTML += `<tr><td>${data.date}</td><td>${data.name}</td><td>${data.category}</td><td>$${data.price}</td><td><a href="${data.receiptUrl}" target="_blank">檢視</a></td></tr>`;
+        }
+      });
+    }
+    loadData();
 
-      if (email === "Admin" && pwd === "61399638") {
-        localStorage.setItem("userRole", "admin");
-        localStorage.setItem("userEmail", "Admin");
-        window.location.href = "main.html";
-        return;
-      }
-
-      signInWithEmailAndPassword(auth, email, pwd)
-        .then((userCredential) => {
-          localStorage.setItem("userRole", "member");
-          localStorage.setItem("userEmail", userCredential.user.email);
-          window.location.href = "main.html";
-        })
-        .catch((error) => {
-          msg.innerText = "登入失敗，請檢查帳號密碼。";
-        });
-    });
-
-    // ==========================================
-    // 3. 一般 Email 註冊邏輯
-    // ==========================================
-    document.getElementById("registerBtn").addEventListener("click", () => {
-      const email = document.getElementById("email").value;
-      const pwd = document.getElementById("password").value;
+    // 上傳功能
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      const file = document.getElementById("claimReceipt").files[0];
+      if (!file) return alert("請選擇檔案");
       
-      if(!email || !pwd) {
-        msg.innerText = "請輸入 Email 與密碼進行註冊";
-        return;
-      }
+      const statusMsg = document.getElementById("statusMsg");
+      statusMsg.innerText = "正在處理中，請稍候...";
+      console.log("開始上傳...");
 
-      createUserWithEmailAndPassword(auth, email, pwd)
-        .then(() => {
-          alert("註冊成功！請直接點擊登入。");
-          msg.innerText = "";
-        })
-        .catch((error) => {
-          msg.innerText = "註冊失敗：" + error.message;
+      try {
+        const storageRef = ref(storage, 'receipts/' + Date.now() + '_' + file.name);
+        await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+        
+        await addDoc(collection(db, "claims"), {
+          category: document.getElementById("claimCategory").value,
+          price: document.getElementById("claimPrice").value,
+          name: document.getElementById("claimName").value,
+          date: document.getElementById("claimDate").value,
+          receiptUrl: url,
+          uploader: email
         });
+        
+        alert("成功上傳！");
+        statusMsg.innerText = "完成";
+        loadData();
+      } catch (error) {
+        console.error(error);
+        alert("上傳失敗：" + error.message);
+        statusMsg.innerText = "錯誤：" + error.message;
+      }
     });
   </script>
 </body>
