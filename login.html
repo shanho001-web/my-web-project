@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>系統登入</title>
+  <style>
+    body { font-family: sans-serif; display: flex; justify-content: center; margin-top: 100px; background: #eef2f5; }
+    .box { background: white; padding: 30px; border-radius: 10px; width: 300px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    input, select, button { width: 100%; padding: 10px; margin-top: 10px; box-sizing: border-box; }
+    button { background: #28a745; color: white; border: none; cursor: pointer; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>系統登入</h2>
+    <select>
+      <option value="member">一般會員</option>
+      <option value="admin">管理員 (Admin)</option>
+    </select>
+    <input type="text" placeholder="帳號">
+    <input type="password" placeholder="密碼">
+    <button>登入</button>
+    <br><br><a href="index.html">返回首頁</a>
+  </div>
+</body>
+</html>
