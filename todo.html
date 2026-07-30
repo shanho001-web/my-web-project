@@ -1,14 +1,38 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>待辦事項</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的待辦事項</title>
 </head>
 <body>
-  <h2>我的待辦清單</h2>
-  <input type="text" id="task" placeholder="輸入事項">
-  <button onclick="document.getElementById('list').innerHTML += '<li>' + document.getElementById('task').value + '</li>'">加入</button>
-  <ul id="list"></ul>
-  <br><a href="index.html">返回首頁</a>
+
+  <h1>Todo List 測試頁面</h1>
+  <p>請打開開發者工具 (Inspect) 的 Console 來確認連線狀態。</p>
+
+  <!-- ========================================== -->
+  <!-- Firebase 設定區域 (請放在 </body> 之前) -->
+  <!-- ========================================== -->
+  <script type="module">
+    // 1. 導入 Firebase 核心功能 (使用 CDN 網址，適合純 HTML 開發)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
+    // 2. 你的專屬 Firebase 設定檔 (已替換為你的金鑰)
+    const firebaseConfig = {
+      apiKey: "AIzaSyD8c7DvOJnnRHYnJtcK5ds6-VDGH7vCkEY",
+      authDomain: "mywebproject-b01e6.firebaseapp.com",
+      projectId: "mywebproject-b01e6",
+      storageBucket: "mywebproject-b01e6.firebasestorage.app",
+      messagingSenderId: "971882120028",
+      appId: "1:971882120028:web:80b7e3be5a1ec68ebb7799"
+    };
+
+    // 3. 初始化 Firebase
+    const app = initializeApp(firebaseConfig);
+    
+    // 4. 測試連線訊息
+    console.log("🔥 Firebase 初始化成功！鑰匙已經插上啦！");
+  </script>
+
 </body>
 </html>
