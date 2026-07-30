@@ -1,25 +1,133 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>我的網站</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>報銷系統 - 登入</title>
   <style>
-    body { font-family: sans-serif; text-align: center; background-color: #f4f4f9; padding: 20px; }
-    .container { background: white; padding: 20px; border-radius: 15px; display: inline-block; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-top: 20px;}
-    nav a { text-decoration: none; padding: 10px 20px; background: #007bff; color: white; border-radius: 5px; margin: 0 5px; }
+    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f9; }
+    .container { max-width: 400px; margin: 50px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; font-size: 16px; }
+    button:hover { background: #0056b3; }
+    
+    .register-btn { background: #28a745; }
+    .register-btn:hover { background: #1e7e34; }
+    
+    .google-btn { background: #ffffff; color: #757575; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+    .google-btn:hover { background: #f8f9fa; }
+    .google-icon { width: 20px; height: 20px; margin-right: 10px; }
+    
+    .divider { display: flex; align-items: center; text-align: center; margin: 20px 0; color: #888; }
+    .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #ddd; }
+    .divider:not(:empty)::before { margin-right: .25em; }
+    .divider:not(:empty)::after { margin-left: .25em; }
   </style>
 </head>
 <body>
-  <nav>
-    <a href="index.html">首頁</a>
-    <a href="login.html">登入</a>
-    <a href="todo.html">待辦事項</a>
-    <a href="about.html">關於我們</a>
-  </nav>
+
   <div class="container">
-    <h1>歡迎來到我們的網站 (Version 4)</h1>
-    <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500" alt="Welcome" style="border-radius: 10px;">
-    <p>導覽列已經準備好了！</p>
+    <h2>系統登入</h2>
+    
+    <!-- Google 登入按鈕 -->
+    <button id="googleLoginBtn" class="google-btn">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google logo" class="google-icon">
+      使用 Google 帳號登入
+    </button>
+
+    <div class="divider">或使用 Email 登入</div>
+
+    <input type="text" id="email" placeholder="輸入 ID 或 Email">
+    <input type="password" id="password" placeholder="輸入密碼">
+    
+    <button id="loginBtn">登入</button>
+    <button id="registerBtn" class="register-btn">註冊新會員</button>
+    <p id="msg" style="color: red; text-align: center;"></p>
   </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    // 這裡新增了 GoogleAuthProvider 和 signInWithPopup
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD8c7DvOJnnRHYnJtcK5ds6-VDGH7vCkEY",
+      authDomain: "mywebproject-b01e6.firebaseapp.com",
+      projectId: "mywebproject-b01e6",
+      storageBucket: "mywebproject-b01e6.firebasestorage.app",
+      messagingSenderId: "971882120028",
+      appId: "1:971882120028:web:80b7e3be5a1ec68ebb7799"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const googleProvider = new GoogleAuthProvider(); // 建立 Google 登入提供者
+
+    const msg = document.getElementById("msg");
+
+    // ==========================================
+    // 1. Google 登入邏輯
+    // ==========================================
+    document.getElementById("googleLoginBtn").addEventListener("click", () => {
+      signInWithPopup(auth, googleProvider)
+        .then((result) => {
+          const user = result.user;
+          // 將 Google 登入的使用者設定為一般會員 (member)
+          localStorage.setItem("userRole", "member");
+          localStorage.setItem("userEmail", user.email);
+          window.location.href = "main.html";
+        })
+        .catch((error) => {
+          msg.innerText = "Google 登入失敗：" + error.message;
+        });
+    });
+
+    // ==========================================
+    // 2. 一般 Email 登入邏輯 (包含 Admin)
+    // ==========================================
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      const email = document.getElementById("email").value;
+      const pwd = document.getElementById("password").value;
+
+      if (email === "Admin" && pwd === "61399638") {
+        localStorage.setItem("userRole", "admin");
+        localStorage.setItem("userEmail", "Admin");
+        window.location.href = "main.html";
+        return;
+      }
+
+      signInWithEmailAndPassword(auth, email, pwd)
+        .then((userCredential) => {
+          localStorage.setItem("userRole", "member");
+          localStorage.setItem("userEmail", userCredential.user.email);
+          window.location.href = "main.html";
+        })
+        .catch((error) => {
+          msg.innerText = "登入失敗，請檢查帳號密碼。";
+        });
+    });
+
+    // ==========================================
+    // 3. 一般 Email 註冊邏輯
+    // ==========================================
+    document.getElementById("registerBtn").addEventListener("click", () => {
+      const email = document.getElementById("email").value;
+      const pwd = document.getElementById("password").value;
+      
+      if(!email || !pwd) {
+        msg.innerText = "請輸入 Email 與密碼進行註冊";
+        return;
+      }
+
+      createUserWithEmailAndPassword(auth, email, pwd)
+        .then(() => {
+          alert("註冊成功！請直接點擊登入。");
+          msg.innerText = "";
+        })
+        .catch((error) => {
+          msg.innerText = "註冊失敗：" + error.message;
+        });
+    });
+  </script>
 </body>
 </html>
