@@ -5,21 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>報銷管理系統</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f7f6; }
-    .form-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    body { font-family: 'Arial', sans-serif; padding: 20px; background: #f4f7f6; }
+    .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
     input, select { margin: 10px 0; padding: 10px; width: 100%; box-sizing: border-box; }
     button { padding: 10px 20px; background: #28a745; color: white; border: none; cursor: pointer; border-radius: 4px; }
-    table { width: 100%; border-collapse: collapse; background: white; }
+    .logout-btn { background: #dc3545; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
     th { background-color: #f8f9fa; }
   </style>
 </head>
 <body>
 
+<div class="container">
   <h1>報銷管理系統</h1>
-  <button id="logoutBtn" style="background: #dc3545;">登出</button>
+  <button id="logoutBtn" class="logout-btn">登出</button>
 
-  <div class="form-box">
+  <div id="form-area">
     <h3>新增報銷單</h3>
     <select id="claimCategory"><option>交通費</option><option>餐飲費</option><option>採購費</option></select>
     <input type="number" id="claimPrice" placeholder="金額">
@@ -34,50 +36,72 @@
     <thead><tr><th>日期</th><th>人名</th><th>分類</th><th>價錢</th><th>檔案</th></tr></thead>
     <tbody id="dataTable"></tbody>
   </table>
+</div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyD8c7DvOJnnRHYnJtcK5ds6-VDGH7vCkEY",
-      authDomain: "mywebproject-b01e6.firebaseapp.com",
-      projectId: "mywebproject-b01e6",
-      storageBucket: "mywebproject-b01e6.firebasestorage.app",
-      messagingSenderId: "971882120028",
-      appId: "1:971882120028:web:80b7e3be5a1ec68ebb7799"
-    };
+  const firebaseConfig = {
+    apiKey: "AIzaSyD8c7DvOJnnRHYnJtcK5ds6-VDGH7vCkEY",
+    authDomain: "mywebproject-b01e6.firebaseapp.com",
+    projectId: "mywebproject-b01e6",
+    storageBucket: "mywebproject-b01e6.firebasestorage.app",
+    messagingSenderId: "971882120028",
+    appId: "1:971882120028:web:80b7e3be5a1ec68ebb7799"
+  };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
 
-    // 登出與檢查
-    if (!localStorage.getItem("userEmail")) window.location.href = "login.html";
-    document.getElementById("logoutBtn").onclick = () => { localStorage.clear(); window.location.href = "login.html"; };
+  // 1. 登入檢查
+  if (!localStorage.getItem("userEmail")) window.location.href = "login.html";
+  document.getElementById("logoutBtn").onclick = () => { localStorage.clear(); window.location.href = "login.html"; };
 
-    // 送出表單邏輯
-    document.getElementById("submitBtn").onclick = async () => {
-      const file = document.getElementById("claimReceipt").files[0];
-      if (!file) return alert("請選檔案");
-      document.getElementById("statusMsg").innerText = "上傳中...";
-      
-      try {
-        const storageRef = ref(storage, 'receipts/' + Date.now() + file.name);
-        await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(storageRef);
-        await addDoc(collection(db, "claims"), {
-          category: document.getElementById("claimCategory").value,
-          price: document.getElementById("claimPrice").value,
-          name: document.getElementById("claimName").value,
-          date: document.getElementById("claimDate").value,
-          receiptUrl: url
-        });
-        alert("成功！");
-        location.reload();
-      } catch (e) { alert("錯誤: " + e.message); }
-    };
-  </script>
+  // 2. 讀取並顯示表格資料
+  async function loadData() {
+    const dataTable = document.getElementById("dataTable");
+    dataTable.innerHTML = "<tr><td colspan='5'>讀取中...</td></tr>";
+    try {
+      const querySnapshot = await getDocs(collection(db, "claims"));
+      dataTable.innerHTML = "";
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        dataTable.innerHTML += `<tr>
+          <td>${data.date}</td>
+          <td>${data.name}</td>
+          <td>${data.category}</td>
+          <td>$${data.price}</td>
+          <td><a href="${data.receiptUrl}" target="_blank">檢視</a></td>
+        </tr>`;
+      });
+    } catch (e) { dataTable.innerHTML = "<tr><td colspan='5'>讀取失敗</td></tr>"; }
+  }
+  loadData(); // 初始化時執行一次
+
+  // 3. 送出表單邏輯
+  document.getElementById("submitBtn").onclick = async () => {
+    const file = document.getElementById("claimReceipt").files[0];
+    if (!file) return alert("請選擇檔案");
+    document.getElementById("statusMsg").innerText = "上傳中...";
+    
+    try {
+      const storageRef = ref(storage, 'receipts/' + Date.now() + '_' + file.name);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      await addDoc(collection(db, "claims"), {
+        category: document.getElementById("claimCategory").value,
+        price: document.getElementById("claimPrice").value,
+        name: document.getElementById("claimName").value,
+        date: document.getElementById("claimDate").value,
+        receiptUrl: url
+      });
+      alert("成功！");
+      location.reload(); // 重新整理以刷新列表
+    } catch (e) { alert("錯誤: " + e.message); }
+  };
+</script>
 </body>
 </html>
