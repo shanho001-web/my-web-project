@@ -2,23 +2,43 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>報銷系統 - 登入</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>報銷管理系統</title>
   <style>
-    body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f2f5; }
-    .login-box { padding: 40px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
-    button { padding: 12px 24px; background: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f7f6; }
+    .form-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    input, select { margin: 10px 0; padding: 10px; width: 100%; box-sizing: border-box; }
+    button { padding: 10px 20px; background: #28a745; color: white; border: none; cursor: pointer; border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+    th { background-color: #f8f9fa; }
   </style>
 </head>
 <body>
 
-  <div class="login-box">
-    <h1>報銷系統登入</h1>
-    <button id="googleLoginBtn">使用 Google 帳號登入</button>
+  <h1>報銷管理系統</h1>
+  <button id="logoutBtn" style="background: #dc3545;">登出</button>
+
+  <div class="form-box">
+    <h3>新增報銷單</h3>
+    <select id="claimCategory"><option>交通費</option><option>餐飲費</option><option>採購費</option></select>
+    <input type="number" id="claimPrice" placeholder="金額">
+    <input type="text" id="claimName" placeholder="申請人姓名">
+    <input type="date" id="claimDate">
+    <input type="file" id="claimReceipt">
+    <button id="submitBtn">送出表單</button>
+    <p id="statusMsg"></p>
   </div>
+
+  <table>
+    <thead><tr><th>日期</th><th>人名</th><th>分類</th><th>價錢</th><th>檔案</th></tr></thead>
+    <tbody id="dataTable"></tbody>
+  </table>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD8c7DvOJnnRHYnJtcK5ds6-VDGH7vCkEY",
@@ -30,25 +50,34 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
+    const db = getFirestore(app);
+    const storage = getStorage(app);
 
-    document.getElementById("googleLoginBtn").addEventListener("click", async () => {
+    // 登出與檢查
+    if (!localStorage.getItem("userEmail")) window.location.href = "login.html";
+    document.getElementById("logoutBtn").onclick = () => { localStorage.clear(); window.location.href = "login.html"; };
+
+    // 送出表單邏輯
+    document.getElementById("submitBtn").onclick = async () => {
+      const file = document.getElementById("claimReceipt").files[0];
+      if (!file) return alert("請選檔案");
+      document.getElementById("statusMsg").innerText = "上傳中...";
+      
       try {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        
-        // 儲存登入資訊
-        localStorage.setItem("userEmail", user.email);
-        localStorage.setItem("userRole", "user"); // 預設角色
-        
-        alert("登入成功！");
-        window.location.href = "index.html"; // 登入後跳轉回主頁
-      } catch (error) {
-        console.error("登入失敗: ", error);
-        alert("登入失敗：" + error.message);
-      }
-    });
+        const storageRef = ref(storage, 'receipts/' + Date.now() + file.name);
+        await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+        await addDoc(collection(db, "claims"), {
+          category: document.getElementById("claimCategory").value,
+          price: document.getElementById("claimPrice").value,
+          name: document.getElementById("claimName").value,
+          date: document.getElementById("claimDate").value,
+          receiptUrl: url
+        });
+        alert("成功！");
+        location.reload();
+      } catch (e) { alert("錯誤: " + e.message); }
+    };
   </script>
 </body>
 </html>
