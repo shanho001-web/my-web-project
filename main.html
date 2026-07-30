@@ -54,7 +54,6 @@
     import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-    // 你的 Firebase 設定
     const firebaseConfig = {
       apiKey: "AIzaSyD8c7DvOJnnRHYnJtcK5ds6-VDGH7vCkEY",
       authDomain: "mywebproject-b01e6.firebaseapp.com",
@@ -68,7 +67,6 @@
     const db = getFirestore(app);
     const storage = getStorage(app);
 
-    // 權限檢查
     const role = localStorage.getItem("userRole");
     const email = localStorage.getItem("userEmail");
     if (!role) { window.location.href = "index.html"; }
@@ -81,7 +79,6 @@
       window.location.href = "index.html";
     });
 
-    // 載入資料
     async function loadData() {
       const dataTable = document.getElementById("dataTable");
       dataTable.innerHTML = "";
@@ -95,25 +92,46 @@
     }
     loadData();
 
-    // 送出資料
+    // 深度偵錯版 submitBtn
     document.getElementById("submitBtn").addEventListener("click", async () => {
       const file = document.getElementById("claimReceipt").files[0];
       if (!file) return alert("請選擇檔案");
       
-      const storageRef = ref(storage, 'receipts/' + Date.now() + '_' + file.name);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      
-      await addDoc(collection(db, "claims"), {
-        category: document.getElementById("claimCategory").value,
-        price: document.getElementById("claimPrice").value,
-        name: document.getElementById("claimName").value,
-        date: document.getElementById("claimDate").value,
-        receiptUrl: url,
-        uploader: email
-      });
-      alert("成功上傳！");
-      loadData();
+      const statusMsg = document.getElementById("statusMsg");
+      statusMsg.innerText = "正在處理中，請稍候...";
+      console.log("開始上傳流程...");
+
+      try {
+        console.log("準備上傳檔案到 Storage...");
+        const storageRef = ref(storage, 'receipts/' + Date.now() + '_' + file.name);
+        
+        console.log("開始執行 uploadBytes...");
+        await uploadBytes(storageRef, file);
+        console.log("檔案上傳成功，正在取得下載連結...");
+        
+        const url = await getDownloadURL(storageRef);
+        console.log("取得連結成功: ", url);
+        
+        console.log("開始寫入 Firestore...");
+        await addDoc(collection(db, "claims"), {
+          category: document.getElementById("claimCategory").value,
+          price: document.getElementById("claimPrice").value,
+          name: document.getElementById("claimName").value,
+          date: document.getElementById("claimDate").value,
+          receiptUrl: url,
+          uploader: email
+        });
+        
+        console.log("資料庫寫入成功！");
+        alert("成功上傳！");
+        statusMsg.innerText = "上傳成功！";
+        loadData();
+        
+      } catch (error) {
+        console.error("發生錯誤詳情: ", error);
+        alert("上傳失敗，詳細錯誤為：" + error.message);
+        statusMsg.innerText = "錯誤：" + error.message;
+      }
     });
   </script>
 </body>
