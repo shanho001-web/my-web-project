@@ -1,22 +1,94 @@
-<!-- Firebase SDK (ES Module) & 完整後端邏輯串接 -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系統入口 - 登入與註冊</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .auth-container { background-color: #ffffff; width: 100%; max-width: 420px; padding: 30px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1); }
+        .tab-group { display: flex; margin-bottom: 25px; border-bottom: 2px solid #eef0f3; }
+        .tab-btn { flex: 1; padding: 12px 0; background: none; border: none; font-size: 16px; font-weight: 600; color: #8898aa; cursor: pointer; }
+        .tab-btn.active { color: #4f46e5; border-bottom: 3px solid #4f46e5; }
+        .form-content { display: none; } .form-content.active { display: block; }
+        .form-group { margin-bottom: 18px; } .form-group label { display: block; margin-bottom: 6px; font-size: 14px; color: #4a5568; }
+        .form-group input { width: 100%; padding: 12px; border: 1px solid #cbd5e0; border-radius: 6px; }
+        .btn-primary { width: 100%; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .btn-admin { background-color: #2d3748; }
+        .divider { display: flex; align-items: center; margin: 20px 0; color: #a0aec0; font-size: 13px; }
+        .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #e2e8f0; }
+        .divider span { padding: 0 10px; }
+        .google-btn { width: 100%; padding: 10px; background-color: #ffffff; border: 1px solid #cbd5e0; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .footer-link { text-align: center; margin-top: 20px; }
+        .footer-link a { color: #718096; font-size: 13px; cursor: pointer; text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="auth-container">
+    <!-- 切換 Tab -->
+    <div class="tab-group" id="tabGroup">
+        <button class="tab-btn active" onclick="switchTab('member-login')">會員登入</button>
+        <button class="tab-btn" onclick="switchTab('member-register')">會員註冊</button>
+    </div>
+
+    <!-- 1. 會員登入 -->
+    <div id="member-login" class="form-content active">
+        <form onsubmit="handleMemberLogin(event)">
+            <div class="form-group"><label>電子郵件</label><input type="email" id="login-email" required></div>
+            <div class="form-group"><label>密碼</label><input type="password" id="login-password" required></div>
+            <button type="submit" class="btn-primary">登入會員</button>
+        </form>
+        <div class="divider"><span>或</span></div>
+        <button type="button" class="google-btn" onclick="handleGoogleSignIn()">使用 Google 帳號登入</button>
+        <div class="footer-link"><a onclick="switchToAdmin()">切換至 管理員(Admin) 登入</a></div>
+    </div>
+
+    <!-- 2. 會員註冊 -->
+    <div id="member-register" class="form-content">
+        <form onsubmit="handleMemberRegister(event)">
+            <div class="form-group"><label>姓名</label><input type="text" id="reg-name" required></div>
+            <div class="form-group"><label>電子郵件</label><input type="email" id="reg-email" required></div>
+            <div class="form-group"><label>密碼</label><input type="password" id="reg-password" required></div>
+            <button type="submit" class="btn-primary">建立新帳號</button>
+        </form>
+        <div class="divider"><span>或</span></div>
+        <button type="button" class="google-btn" onclick="handleGoogleSignIn()">使用 Google 快速註冊</button>
+    </div>
+
+    <!-- 3. Admin 登入 -->
+    <div id="admin-login" class="form-content">
+        <h3 style="text-align:center; margin-bottom:20px;">管理員後台登入</h3>
+        <form onsubmit="handleAdminLogin(event)">
+            <div class="form-group"><label>Admin 帳號 (Email)</label><input type="email" id="admin-email" required></div>
+            <div class="form-group"><label>管理員密碼</label><input type="password" id="admin-password" required></div>
+            <button type="submit" class="btn-primary btn-admin">登入管理系統</button>
+        </form>
+        <div class="footer-link"><a onclick="switchTab('member-login')">返回會員登入</a></div>
+    </div>
+</div>
+
+<script>
+    function switchTab(tabId) {
+        document.getElementById('tabGroup').style.display = 'flex';
+        document.querySelectorAll('.form-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        if (tabId === 'member-login') document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        else document.querySelectorAll('.tab-btn')[1].classList.add('active');
+    }
+    function switchToAdmin() {
+        document.getElementById('tabGroup').style.display = 'none';
+        document.querySelectorAll('.form-content').forEach(c => c.classList.remove('active'));
+        document.getElementById('admin-login').classList.add('active');
+    }
+</script>
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { 
-        getAuth, 
-        signInWithEmailAndPassword, 
-        createUserWithEmailAndPassword, 
-        signInWithPopup, 
-        GoogleAuthProvider, 
-        signOut,
-        onAuthStateChanged // <-- 新增這行
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { 
-        getFirestore, 
-        doc, 
-        getDoc, 
-        setDoc, 
-        serverTimestamp 
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "YOUR_API_KEY",
@@ -32,100 +104,47 @@
     const db = getFirestore(app);
     const googleProvider = new GoogleAuthProvider();
 
-    // --- 新增：監聽登入狀態 ---
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            // 使用者已登入！
-            // 這裡決定你要做什麼：
-            // 方案 A: 強制跳轉 (你目前可能就是這樣)
-            // const userSnap = await getDoc(doc(db, "users", user.uid));
-            // if (userSnap.exists() && userSnap.data().role === 'admin') window.location.href = 'admin-dashboard.html';
-            // else window.location.href = 'member-dashboard.html';
-
-            // 方案 B: (推薦) 在網頁上顯示一個「回到後台」按鈕，而不是隱藏整個登入頁
-            console.log("使用者已登入，可選擇顯示回到後台按鈕");
-            // 你可以在這裡用 DOM 操作把原本的表單隱藏，顯示一個「回到後台」按鈕
-        } else {
-            console.log("使用者未登入，顯示登入頁面");
-        }
-    });
-
-    // --- 函式掛載 ---
     window.handleGoogleSignIn = async function() {
         try {
             const result = await signInWithPopup(auth, googleProvider);
             const user = result.user;
-            const userRef = doc(db, "users", user.uid);
-            const userSnap = await getDoc(userRef);
-
+            const userSnap = await getDoc(doc(db, "users", user.uid));
             if (!userSnap.exists()) {
-                await setDoc(userRef, {
-                    uid: user.uid,
-                    email: user.email,
-                    displayName: user.displayName || '',
-                    role: 'member',
-                    createdAt: serverTimestamp()
-                });
+                await setDoc(doc(db, "users", user.uid), { uid: user.uid, email: user.email, role: 'member', createdAt: serverTimestamp() });
                 window.location.href = 'member-dashboard.html';
             } else {
-                const userData = userSnap.data();
-                if (userData.role === 'admin') window.location.href = 'admin-dashboard.html';
+                if (userSnap.data().role === 'admin') window.location.href = 'admin-dashboard.html';
                 else window.location.href = 'member-dashboard.html';
             }
-        } catch (error) {
-            alert("Google 登入失敗: " + error.message);
-        }
+        } catch (e) { alert("Google 登入失敗: " + e.message); }
     };
 
     window.handleMemberLogin = async function(e) {
         e.preventDefault();
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            await signInWithEmailAndPassword(auth, document.getElementById('login-email').value, document.getElementById('login-password').value);
             window.location.href = 'member-dashboard.html';
-        } catch (error) {
-            alert("會員登入失敗: " + error.message);
-        }
+        } catch (e) { alert("登入失敗: " + e.message); }
     };
 
     window.handleMemberRegister = async function(e) {
         e.preventDefault();
-        const name = document.getElementById('reg-name').value;
-        const email = document.getElementById('reg-email').value;
-        const password = document.getElementById('reg-password').value;
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-            await setDoc(doc(db, "users", user.uid), {
-                uid: user.uid,
-                email: email,
-                displayName: name,
-                role: 'member',
-                createdAt: serverTimestamp()
-            });
+            const cred = await createUserWithEmailAndPassword(auth, document.getElementById('reg-email').value, document.getElementById('reg-password').value);
+            await setDoc(doc(db, "users", cred.user.uid), { uid: cred.user.uid, email: cred.user.email, role: 'member', createdAt: serverTimestamp() });
             window.location.href = 'member-dashboard.html';
-        } catch (error) {
-            alert("註冊失敗: " + error.message);
-        }
+        } catch (e) { alert("註冊失敗: " + e.message); }
     };
 
     window.handleAdminLogin = async function(e) {
         e.preventDefault();
-        const email = document.getElementById('admin-email').value;
-        const password = document.getElementById('admin-password').value;
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-            const userSnap = await getDoc(doc(db, "users", user.uid));
-            if (userSnap.exists() && userSnap.data().role === 'admin') {
-                window.location.href = 'admin-dashboard.html';
-            } else {
-                await signOut(auth);
-                alert("權限不足：該帳號非管理員帳號");
-            }
-        } catch (error) {
-            alert("Admin 登入失敗: " + error.message);
-        }
+            const cred = await signInWithEmailAndPassword(auth, document.getElementById('admin-email').value, document.getElementById('admin-password').value);
+            const userSnap = await getDoc(doc(db, "users", cred.user.uid));
+            if (userSnap.exists() && userSnap.data().role === 'admin') window.location.href = 'admin-dashboard.html';
+            else { await signOut(auth); alert("權限不足"); }
+        } catch (e) { alert("Admin 登入失敗: " + e.message); }
     };
 </script>
+</body>
+</html>
